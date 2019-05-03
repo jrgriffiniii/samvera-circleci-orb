@@ -7,11 +7,25 @@ parameters:
     type: string
   project:
     type: string
+  require_gemspec:
+    type: boolean
+    default: true
 steps:
-  - restore_cache:
-      name: Restore bundle from cache
-      keys:
-        - v1-bundle-{{ checksum "Gemfile" }}--{{ checksum "<< parameters.project >>.gemspec" }}-<< parameters.ruby_version >>
+  - when:
+      condition: << parameters.require_gemspec >>
+      steps:
+        - restore_cache:
+            name: Restore bundle from cache with gemspec
+            keys:
+              - v1-bundle-{{ checksum "Gemfile" }}--{{ checksum "<< parameters.project >>.gemspec" }}-<< parameters.ruby_version >>
+
+  - unless:
+      condition: << parameters.require_gemspec >>
+      steps:
+        - restore_cache:
+            name: Restore bundle from cache without gemspec
+            keys:
+              - v1-bundle-{{ checksum "Gemfile" }}-<< parameters.ruby_version >>
 
   - run:
       name: Update bundler
@@ -23,8 +37,20 @@ steps:
       name: Install dependencies
       command: bundle check || bundle install
 
-  - save_cache:
-      name: Save bundle cache
-      key: v1-bundle-{{ checksum "Gemfile" }}--{{ checksum "<< parameters.project >>.gemspec" }}-<< parameters.ruby_version >>
-      paths:
-        - ~/project/vendor/bundle
+  - when:
+      condition: << parameters.require_gemspec >>
+      steps:
+        - save_cache:
+            name: Save bundle cache with gemspec
+            key: v1-bundle-{{ checksum "Gemfile" }}--{{ checksum "<< parameters.project >>.gemspec" }}-<< parameters.ruby_version >>
+            paths:
+              - ~/project/vendor/bundle
+
+  - unless:
+      condition: << parameters.require_gemspec >>
+      steps:
+        - save_cache:
+            name: Save bundle cache without gemspec
+            key: v1-bundle-{{ checksum "Gemfile" }}-<< parameters.ruby_version >>
+            paths:
+              - ~/project/vendor/bundle
